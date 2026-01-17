@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Viajero Downloader Final</title>
+    <style>
+        :root { --primary: #3b82f6; --bg: #f1f5f9; --text: #1e293b; --success: #10b981; --error: #ef4444; }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            padding: 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start; /* Alineación superior para evitar cortes verticales */
+            min-height: 100vh; 
+            margin: 0; 
+            box-sizing: border-box;
+        }
+        
+        .card { 
+            background: white; 
+            width: 100%; 
+            max-width: 550px; 
+            padding: 2.5rem; 
+            border-radius: 16px; 
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); 
+            height: auto; /* Importante: deja que crezca según el contenido */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1 { text-align: center; margin-top: 0; font-size: 1.6rem; color: #0f172a; margin-bottom: 1.5rem; }
+        
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; }
+        input { 
+            flex: 1; 
+            padding: 12px 16px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            outline: none; 
+            font-size: 1rem; 
+            min-width: 0; /* Evita que el input rompa el flex */
+        }
+        input:focus { border-color: var(--primary); }
+        
+        .btn { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn:hover { background: #2563eb; transform: translateY(-1px); }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
+
+        /* Lista de Calidades */
+        #resultados { display: none; margin-top: 10px; animation: fadeIn 0.3s ease-out; width: 100%; }
+        .media-info { background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 600; text-align: center; border: 1px solid #e2e8f0; }
+        
+        .format-btn { 
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px; border: 1px solid #e2e8f0; margin-bottom: 8px; 
+            border-radius: 10px; cursor: pointer; background: white; transition: 0.2s; 
+            width: 100%; box-sizing: border-box; /* Asegura que no se salga */
+        }
+        .format-btn:hover { border-color: var(--primary); background: #eff6ff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+
+        /* PANEL DE PROGRESO (CORREGIDO) */
+        #panelProgreso { 
+            display: none; 
+            margin-top: 20px; 
+            background: #f8fafc; 
+            padding: 25px; 
+            border-radius: 12px; 
+            border: 1px solid #e2e8f0; 
+            text-align: center; 
+            width: 100%; 
+            box-sizing: border-box; /* Vital para que el padding no sume al ancho */
+            animation: fadeIn 0.3s;
+        }
+        
+        .spinner { font-size: 2.5rem; margin-bottom: 15px; display: inline-block; animation: spin 2s infinite linear; }
+        
+        /* Corrección de textos largos: permite saltos de línea */
+        .titulo-actual { 
+            font-weight: 700; 
+            font-size: 1.1rem;
+            margin-bottom: 15px; 
+            color: #334155;
+            word-wrap: break-word; /* Rompe palabras largas si es necesario */
+            overflow-wrap: break-word;
+            white-space: normal; /* Permite múltiples líneas */
+            line-height: 1.4;
+        }
+        
+        .progress-track { width: 100%; height: 14px; background: #e2e8f0; border-radius: 7px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease-out; }
+
+        /* MENSAJE DE ÉXITO */
+        #mensajeExito { 
+            display: none; 
+            text-align: center; 
+            margin-top: 20px; 
+            padding: 20px;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .success-icon { font-size: 4rem; color: var(--success); display: block; margin-bottom: 15px; }
+        .success-title { font-size: 1.5rem; font-weight: 800; color: #064e3b; margin: 0 0 10px 0; }
+        .success-stats { background: #ecfdf5; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1rem; border: 1px solid #d1fae5; }
+        .btn-reset { width: 100%; background: var(--success); font-size: 1.1rem; padding: 14px; }
+        .btn-reset:hover { background: #059669; }
+
+        /* ERRORES */
+        #reporteErrores { display: none; margin-top: 20px; background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca; text-align: left; width: 100%; box-sizing: border-box; }
+        .error-item { font-size: 0.85rem; color: #b91c1c; margin-bottom: 5px; border-bottom: 1px solid #fee2e2; padding-bottom: 5px; word-break: break-all; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🎒 Viajero Downloader</h1>
+        
+        <div class="input-group">
+            <input type="text" id="urlInput" placeholder="Pega el enlace de YouTube aquí..." onkeypress="if(event.key==='Enter') analizar()">
+            <button class="btn" onclick="analizar()" id="btnAnalizar">🔍 Buscar</button>
+        </div>
+
+        <div id="resultados">
+            <div class="media-info" id="tituloContent"></div>
+            <p style="font-size:0.9rem; color:#64748b; margin-bottom:10px;">Elige calidad:</p>
+            <div id="listaFormatos"></div>
+        </div>
+
+        <div id="panelProgreso">
+            <div class="spinner">⏳</div>
+            <div style="font-size:0.9rem; font-weight:bold; color:#64748b; margin-bottom:5px;" id="contadorVideos">Iniciando conexión...</div>
+            <div class="titulo-actual" id="tituloActual">Preparando descargas...</div>
+            
+            <div class="progress-track"><div class="progress-fill" id="barra"></div></div>
+            <div style="margin-top:8px; font-size:0.9rem; font-weight:bold; color:#64748b;" id="porcTexto">0%</div>
+        </div>
+
+        <div id="mensajeExito">
+            <div class="success-icon">✅</div>
+            <h2 class="success-title">¡Tarea Completada!</h2>
+            <div class="success-stats" id="statsExito">
+                Archivos guardados correctamente.
+            </div>
+            <button class="btn btn-reset" onclick="limpiarTodo()">✨ Nueva Descarga</button>
+        </div>
+
+        <div id="reporteErrores">
+            <h4 style="margin:0 0 10px 0; color:#991b1b;">⚠️ Hubo problemas con algunos archivos:</h4>
+            <div id="listaErrores"></div>
+            <button class="btn" style="background:#ef4444; margin-top:10px; width:100%; color:white;" onclick="limpiarTodo()">Entendido</button>
+        </div>
+    </div>
+
+    <script>
+        let urlActual = "", esPlaylist = false;
+
+        async function analizar() {
+            const url = document.getElementById('urlInput').value.trim();
+            if(!url) return;
+            resetUI_Parcial();
+            const btn = document.getElementById('btnAnalizar');
+            btn.disabled = true; btn.innerText = "...";
+
+            try {
+                const fd = new FormData(); fd.append('url', url);
+                const res = await fetch('/analizar', { method: 'POST', body: fd });
+                const data = await res.json();
+                if(data.error) throw new Error(data.error);
+
+                urlActual = url; esPlaylist = data.es_playlist;
+                document.getElementById('tituloContent').innerText = data.titulo;
+
+                const lista = document.getElementById('listaFormatos'); lista.innerHTML = '';
+                data.formatos.forEach(f => {
+                    const div = document.createElement('div');
+                    div.className = 'format-btn';
+                    div.innerHTML = `<span>${f.texto}</span> <span style="font-size:0.8rem; font-weight:bold; padding:4px 8px; background:#f1f5f9; border-radius:6px; color:#475569;">${f.ext.toUpperCase()}</span>`;
+                    div.onclick = () => iniciarProceso(f.id);
+                    lista.appendChild(div);
+                });
+                document.getElementById('resultados').style.display = 'block';
+            } catch (e) { alert(e.message); } 
+            finally { btn.disabled = false; btn.innerText = "🔍 Buscar"; }
+        }
+
+        async function iniciarProceso(fid) {
+            try {
+                const r = await fetch('/pedir_ruta_sistema', { method: 'POST' });
+                const d = await r.json();
+                if(d.cancelado) return;
+                if(d.error) throw new Error(d.error);
+                descargar(fid, d.ruta);
+            } catch(e) { alert(e.message); }
+        }
+
+        function descargar(fid, ruta) {
+            document.getElementById('resultados').style.display = 'none';
+            document.getElementById('panelProgreso').style.display = 'block';
+            
+            const contador = document.getElementById('contadorVideos');
+            const tituloVid = document.getElementById('tituloActual');
+            const barra = document.getElementById('barra');
+            const porcTexto = document.getElementById('porcTexto');
+
+            const params = new URLSearchParams({ url: urlActual, format_id: fid, path: ruta, es_playlist: esPlaylist });
+            const evt = new EventSource(`/descargar_stream?${params}`);
+
+            evt.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.status === 'nuevo_video') {
+                    contador.innerText = `Video ${data.indice} de ${data.total}`;
+                    tituloVid.innerText = data.titulo;
+                    barra.style.width = '0%';
+                    porcTexto.innerText = '0%';
+                }
+                else if (data.status === 'descargando') {
+                    barra.style.width = data.progreso + '%';
+                    porcTexto.innerText = Math.round(data.progreso) + '%';
+                }
+                else if (data.status === 'completado_total') {
+                    evt.close();
+                    document.getElementById('panelProgreso').style.display = 'none';
+                    if (data.errores.length > 0) mostrarErrores(data.errores);
+                    else mostrarExito(data.completados);
+                }
+                else if (data.error) {
+                    alert("Error Fatal: " + data.error);
+                    evt.close();
+                    limpiarTodo();
+                }
+            };
+            evt.onerror = () => { evt.close(); };
+        }
+
+        function mostrarExito(cantidad) {
+            const box = document.getElementById('mensajeExito');
+            document.getElementById('statsExito').innerHTML = `Se descargaron <strong>${cantidad}</strong> archivo(s) exitosamente.`;
+            box.style.display = 'block';
+        }
+
+        function mostrarErrores(errores) {
+            const box = document.getElementById('reporteErrores');
+            const list = document.getElementById('listaErrores');
+            list.innerHTML = '';
+            errores.forEach(err => {
+                const div = document.createElement('div');
+                div.className = 'error-item';
+                div.innerText = `${err.titulo}: ${err.causa}`;
+                list.appendChild(div);
+            });
+            box.style.display = 'block';
+        }
+
+        function limpiarTodo() {
+            document.getElementById('urlInput').value = "";
+            document.getElementById('resultados').style.display = 'none';
+            document.getElementById('panelProgreso').style.display = 'none';
+            document.getElementById('mensajeExito').style.display = 'none';
+            document.getElementById('reporteErrores').style.display = 'none';
+            urlActual = ""; esPlaylist = false;
+        }
+
+        function resetUI_Parcial() {
+            document.getElementById('resultados').style.display = 'none';
+            document.getElementById('panelProgreso').style.display = 'none';
+            document.getElementById('mensajeExito').style.display = 'none';
+            document.getElementById('reporteErrores').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
