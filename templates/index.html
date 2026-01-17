@@ -7,110 +7,72 @@
         :root { --primary: #3b82f6; --bg: #f1f5f9; --text: #1e293b; --success: #10b981; --error: #ef4444; }
         
         body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            background: var(--bg); 
-            color: var(--text); 
-            padding: 20px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: flex-start; /* Alineación superior para evitar cortes verticales */
-            min-height: 100vh; 
-            margin: 0; 
-            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg); color: var(--text); padding: 20px; 
+            display: flex; justify-content: center; align-items: flex-start; 
+            min-height: 100vh; margin: 0; box-sizing: border-box;
         }
         
         .card { 
-            background: white; 
-            width: 100%; 
-            max-width: 550px; 
-            padding: 2.5rem; 
-            border-radius: 16px; 
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); 
-            height: auto; /* Importante: deja que crezca según el contenido */
-            display: flex;
-            flex-direction: column;
+            background: white; width: 100%; max-width: 550px; padding: 2.5rem; 
+            border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
+            height: auto; display: flex; flex-direction: column;
         }
         
         h1 { text-align: center; margin-top: 0; font-size: 1.6rem; color: #0f172a; margin-bottom: 1.5rem; }
         
         .input-group { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; }
-        input { 
-            flex: 1; 
-            padding: 12px 16px; 
-            border: 2px solid #e2e8f0; 
-            border-radius: 8px; 
-            outline: none; 
-            font-size: 1rem; 
-            min-width: 0; /* Evita que el input rompa el flex */
-        }
+        input { flex: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; font-size: 1rem; min-width: 0; }
         input:focus { border-color: var(--primary); }
         
         .btn { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .btn:hover { background: #2563eb; transform: translateY(-1px); }
         .btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
 
-        /* Lista de Calidades */
-        #resultados { display: none; margin-top: 10px; animation: fadeIn 0.3s ease-out; width: 100%; }
-        .media-info { background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 600; text-align: center; border: 1px solid #e2e8f0; }
+        /* RESULTADOS */
+        #resultados { display: none; margin-top: 10px; animation: fadeIn 0.3s; width: 100%; }
         
+        /* Estilos de la miniatura */
+        .media-container { text-align: center; margin-bottom: 20px; }
+        .thumb-img { 
+            width: 100%; max-height: 250px; object-fit: cover; 
+            border-radius: 12px; margin-bottom: 15px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            display: none; /* Se oculta si no hay imagen */
+        }
+        .media-title { font-weight: 700; font-size: 1.1rem; line-height: 1.4; color: #1e293b; }
+
         .format-btn { 
             display: flex; justify-content: space-between; align-items: center;
             padding: 14px 16px; border: 1px solid #e2e8f0; margin-bottom: 8px; 
-            border-radius: 10px; cursor: pointer; background: white; transition: 0.2s; 
-            width: 100%; box-sizing: border-box; /* Asegura que no se salga */
+            border-radius: 10px; cursor: pointer; background: white; transition: 0.2s; width: 100%; box-sizing: border-box;
         }
-        .format-btn:hover { border-color: var(--primary); background: #eff6ff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .format-btn:hover { border-color: var(--primary); background: #eff6ff; }
 
-        /* PANEL DE PROGRESO (CORREGIDO) */
+        /* PANEL DE PROGRESO */
         #panelProgreso { 
-            display: none; 
-            margin-top: 20px; 
-            background: #f8fafc; 
-            padding: 25px; 
-            border-radius: 12px; 
-            border: 1px solid #e2e8f0; 
-            text-align: center; 
-            width: 100%; 
-            box-sizing: border-box; /* Vital para que el padding no sume al ancho */
-            animation: fadeIn 0.3s;
+            display: none; margin-top: 20px; background: #f8fafc; padding: 25px; 
+            border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; 
+            width: 100%; box-sizing: border-box; animation: fadeIn 0.3s;
         }
         
         .spinner { font-size: 2.5rem; margin-bottom: 15px; display: inline-block; animation: spin 2s infinite linear; }
+        .titulo-actual { font-weight: 700; font-size: 1.1rem; margin-bottom: 15px; color: #334155; overflow-wrap: break-word; line-height: 1.4; }
         
-        /* Corrección de textos largos: permite saltos de línea */
-        .titulo-actual { 
-            font-weight: 700; 
-            font-size: 1.1rem;
-            margin-bottom: 15px; 
-            color: #334155;
-            word-wrap: break-word; /* Rompe palabras largas si es necesario */
-            overflow-wrap: break-word;
-            white-space: normal; /* Permite múltiples líneas */
-            line-height: 1.4;
-        }
-        
-        .progress-track { width: 100%; height: 14px; background: #e2e8f0; border-radius: 7px; overflow: hidden; position: relative; }
+        .progress-track { width: 100%; height: 14px; background: #e2e8f0; border-radius: 7px; overflow: hidden; position: relative; margin-bottom: 8px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease-out; }
+        
+        .stats-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; font-weight: 600; margin-top: 5px; }
+        .speed-badge { background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; }
 
-        /* MENSAJE DE ÉXITO */
-        #mensajeExito { 
-            display: none; 
-            text-align: center; 
-            margin-top: 20px; 
-            padding: 20px;
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            width: 100%;
-            box-sizing: border-box;
-        }
+        /* EXITO / ERROR */
+        #mensajeExito { display: none; text-align: center; margin-top: 20px; width: 100%; animation: popIn 0.4s; }
         .success-icon { font-size: 4rem; color: var(--success); display: block; margin-bottom: 15px; }
         .success-title { font-size: 1.5rem; font-weight: 800; color: #064e3b; margin: 0 0 10px 0; }
         .success-stats { background: #ecfdf5; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1rem; border: 1px solid #d1fae5; }
-        .btn-reset { width: 100%; background: var(--success); font-size: 1.1rem; padding: 14px; }
-        .btn-reset:hover { background: #059669; }
-
-        /* ERRORES */
+        
         #reporteErrores { display: none; margin-top: 20px; background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca; text-align: left; width: 100%; box-sizing: border-box; }
-        .error-item { font-size: 0.85rem; color: #b91c1c; margin-bottom: 5px; border-bottom: 1px solid #fee2e2; padding-bottom: 5px; word-break: break-all; }
+        .error-item { font-size: 0.85rem; color: #b91c1c; margin-bottom: 5px; border-bottom: 1px solid #fee2e2; padding-bottom: 5px; }
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -123,38 +85,44 @@
         <h1>🎒 Viajero Downloader</h1>
         
         <div class="input-group">
-            <input type="text" id="urlInput" placeholder="Pega el enlace de YouTube aquí..." onkeypress="if(event.key==='Enter') analizar()">
+            <input type="text" id="urlInput" placeholder="Enlace de YouTube..." onkeypress="if(event.key==='Enter') analizar()">
             <button class="btn" onclick="analizar()" id="btnAnalizar">🔍 Buscar</button>
         </div>
 
         <div id="resultados">
-            <div class="media-info" id="tituloContent"></div>
-            <p style="font-size:0.9rem; color:#64748b; margin-bottom:10px;">Elige calidad:</p>
+            <div class="media-container">
+                <img id="thumbImg" class="thumb-img" src="" alt="Miniatura">
+                <div class="media-title" id="tituloContent"></div>
+            </div>
+            
             <div id="listaFormatos"></div>
         </div>
 
         <div id="panelProgreso">
             <div class="spinner">⏳</div>
-            <div style="font-size:0.9rem; font-weight:bold; color:#64748b; margin-bottom:5px;" id="contadorVideos">Iniciando conexión...</div>
-            <div class="titulo-actual" id="tituloActual">Preparando descargas...</div>
+            <div style="font-size:0.9rem; font-weight:bold; color:#64748b; margin-bottom:5px;" id="contadorVideos">Iniciando...</div>
+            <div class="titulo-actual" id="tituloActual">Conectando...</div>
             
             <div class="progress-track"><div class="progress-fill" id="barra"></div></div>
-            <div style="margin-top:8px; font-size:0.9rem; font-weight:bold; color:#64748b;" id="porcTexto">0%</div>
+            
+            <div class="stats-row">
+                <span id="dataSize">-- de --</span>
+                <span id="dataPercent">0%</span>
+                <span class="speed-badge" id="dataSpeed">-- MB/s</span>
+            </div>
         </div>
 
         <div id="mensajeExito">
             <div class="success-icon">✅</div>
-            <h2 class="success-title">¡Tarea Completada!</h2>
-            <div class="success-stats" id="statsExito">
-                Archivos guardados correctamente.
-            </div>
-            <button class="btn btn-reset" onclick="limpiarTodo()">✨ Nueva Descarga</button>
+            <h2 class="success-title">¡Descarga Completa!</h2>
+            <div class="success-stats" id="statsExito"></div>
+            <button class="btn" style="width:100%; background:#10b981;" onclick="limpiarTodo()">✨ Nueva Descarga</button>
         </div>
 
         <div id="reporteErrores">
-            <h4 style="margin:0 0 10px 0; color:#991b1b;">⚠️ Hubo problemas con algunos archivos:</h4>
+            <h4 style="margin:0 0 10px 0; color:#991b1b;">⚠️ Errores detectados:</h4>
             <div id="listaErrores"></div>
-            <button class="btn" style="background:#ef4444; margin-top:10px; width:100%; color:white;" onclick="limpiarTodo()">Entendido</button>
+            <button class="btn" style="background:#ef4444; margin-top:10px; width:100%;" onclick="limpiarTodo()">Cerrar</button>
         </div>
     </div>
 
@@ -175,7 +143,18 @@
                 if(data.error) throw new Error(data.error);
 
                 urlActual = url; esPlaylist = data.es_playlist;
+                
+                // Mostrar Título
                 document.getElementById('tituloContent').innerText = data.titulo;
+                
+                // Mostrar Imagen (Si existe)
+                const img = document.getElementById('thumbImg');
+                if(data.miniatura) {
+                    img.src = data.miniatura;
+                    img.style.display = 'block';
+                } else {
+                    img.style.display = 'none';
+                }
 
                 const lista = document.getElementById('listaFormatos'); lista.innerHTML = '';
                 data.formatos.forEach(f => {
@@ -207,22 +186,30 @@
             const contador = document.getElementById('contadorVideos');
             const tituloVid = document.getElementById('tituloActual');
             const barra = document.getElementById('barra');
-            const porcTexto = document.getElementById('porcTexto');
+            const dSize = document.getElementById('dataSize');
+            const dPercent = document.getElementById('dataPercent');
+            const dSpeed = document.getElementById('dataSpeed');
 
             const params = new URLSearchParams({ url: urlActual, format_id: fid, path: ruta, es_playlist: esPlaylist });
             const evt = new EventSource(`/descargar_stream?${params}`);
 
             evt.onmessage = (e) => {
                 const data = JSON.parse(e.data);
+
                 if (data.status === 'nuevo_video') {
                     contador.innerText = `Video ${data.indice} de ${data.total}`;
                     tituloVid.innerText = data.titulo;
                     barra.style.width = '0%';
-                    porcTexto.innerText = '0%';
+                    dSize.innerText = "Iniciando...";
+                    dPercent.innerText = "0%";
+                    dSpeed.innerText = "--";
                 }
                 else if (data.status === 'descargando') {
+                    // Ahora data.progreso es un número puro (ej: 45.5)
                     barra.style.width = data.progreso + '%';
-                    porcTexto.innerText = Math.round(data.progreso) + '%';
+                    dPercent.innerText = Math.round(data.progreso) + '%';
+                    dSize.innerText = data.detalle;
+                    dSpeed.innerText = data.velocidad;
                 }
                 else if (data.status === 'completado_total') {
                     evt.close();
@@ -231,7 +218,7 @@
                     else mostrarExito(data.completados);
                 }
                 else if (data.error) {
-                    alert("Error Fatal: " + data.error);
+                    alert("Error: " + data.error);
                     evt.close();
                     limpiarTodo();
                 }
@@ -240,9 +227,8 @@
         }
 
         function mostrarExito(cantidad) {
-            const box = document.getElementById('mensajeExito');
+            document.getElementById('mensajeExito').style.display = 'block';
             document.getElementById('statsExito').innerHTML = `Se descargaron <strong>${cantidad}</strong> archivo(s) exitosamente.`;
-            box.style.display = 'block';
         }
 
         function mostrarErrores(errores) {
@@ -260,10 +246,7 @@
 
         function limpiarTodo() {
             document.getElementById('urlInput').value = "";
-            document.getElementById('resultados').style.display = 'none';
-            document.getElementById('panelProgreso').style.display = 'none';
-            document.getElementById('mensajeExito').style.display = 'none';
-            document.getElementById('reporteErrores').style.display = 'none';
+            resetUI_Parcial();
             urlActual = ""; esPlaylist = false;
         }
 
