@@ -5,67 +5,68 @@ import sys
 import threading
 import queue
 import time
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+import shutil
+import uuid
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
 import yt_dlp
 
 app = Flask(__name__)
 
-# --- Función Auxiliar para formatear números (bytes -> MB) ---
+# --- CONFIGURACIÓN ---
+BASE_TEMP_FOLDER = os.path.join(os.getcwd(), 'temp_downloads')
+TIEMPO_EXPIRACION_MINUTOS = 10  # Los archivos se borran después de 10 minutos
+
+# Asegurar que existe la carpeta base
+if not os.path.exists(BASE_TEMP_FOLDER):
+    os.makedirs(BASE_TEMP_FOLDER)
+
+# --- SISTEMA DE LIMPIEZA AUTOMÁTICA (GARBAGE COLLECTOR) ---
+def tarea_limpieza_fondo():
+    """Este 'conserje' revisa carpetas viejas y las borra para liberar espacio."""
+    while True:
+        try:
+            ahora = time.time()
+            # Umbral: Tiempo actual menos X minutos (en segundos)
+            limite = ahora - (TIEMPO_EXPIRACION_MINUTOS * 60)
+
+            if os.path.exists(BASE_TEMP_FOLDER):
+                for nombre_carpeta in os.listdir(BASE_TEMP_FOLDER):
+                    ruta_carpeta = os.path.join(BASE_TEMP_FOLDER, nombre_carpeta)
+                    
+                    # Verificamos si es una carpeta
+                    if os.path.isdir(ruta_carpeta):
+                        # Obtenemos la fecha de modificación de la carpeta
+                        fecha_modificacion = os.path.getmtime(ruta_carpeta)
+                        
+                        if fecha_modificacion < limite:
+                            print(f"🧹 Limpiando basura antigua: {nombre_carpeta}")
+                            shutil.rmtree(ruta_carpeta, ignore_errors=True)
+            
+            # El conserje descansa 60 segundos antes de volver a revisar
+            time.sleep(60)
+        except Exception as e:
+            print(f"Error en limpieza: {e}")
+            time.sleep(60)
+
+# Iniciamos el hilo de limpieza apenas arranca el servidor
+hilo_limpieza = threading.Thread(target=tarea_limpieza_fondo, daemon=True)
+hilo_limpieza.start()
+
+# --- UTILIDADES ---
 def formatear_bytes(num_bytes):
     if num_bytes is None: return "0 B"
     for unidad in ['B', 'KiB', 'MiB', 'GiB']:
-        if num_bytes < 1024.0:
-            return f"{num_bytes:.2f} {unidad}"
+        if num_bytes < 1024.0: return f"{num_bytes:.2f} {unidad}"
         num_bytes /= 1024.0
     return f"{num_bytes:.2f} TiB"
-
-# --- Módulo de Ventana Flotante ---
-def abrir_dialogo_externo():
-    script_dialogo = """
-import tkinter as tk
-from tkinter import filedialog
-import ctypes
-import sys
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
-except:
-    try: ctypes.windll.user32.SetProcessDPIAware()
-    except: pass
-
-root = tk.Tk()
-root.withdraw()
-root.attributes('-topmost', True)
-ruta = filedialog.askdirectory(title="Selecciona Carpeta de Destino")
-if ruta: print(ruta)
-else: print("CANCELADO")
-root.destroy()
-"""
-    try:
-        resultado = subprocess.check_output(
-            [sys.executable, "-c", script_dialogo], 
-            universal_newlines=True,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-        )
-        return resultado.strip()
-    except Exception:
-        return None
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/pedir_ruta_sistema', methods=['POST'])
-def pedir_ruta_sistema():
-    ruta = abrir_dialogo_externo()
-    if ruta and ruta != "CANCELADO":
-        return jsonify({'ruta': ruta})
-    elif ruta == "CANCELADO":
-        return jsonify({'cancelado': True})
-    else:
-        return jsonify({'error': 'Error al abrir ventana'}), 500
-
 @app.route('/analizar', methods=['POST'])
 def analizar():
+    # ... (Misma lógica de siempre) ...
     url = request.form.get('url')
     if not url: return jsonify({'error': 'Falta URL'}), 400
     try:
@@ -74,19 +75,16 @@ def analizar():
             info = ydl.extract_info(url, download=False)
             es_playlist = 'entries' in info
             
-            # Extraemos la miniatura de alta calidad si es posible
-            thumbnails = info.get('thumbnails', [])
-            thumb_url = info.get('thumbnail')
-            if thumbnails:
-                # Intentamos buscar la última que suele ser la mejor
-                thumb_url = thumbnails[-1].get('url', thumb_url)
+            thumb = info.get('thumbnail')
+            if info.get('thumbnails'): thumb = info['thumbnails'][-1].get('url', thumb)
 
             datos = {
                 'titulo': info.get('title'),
                 'es_playlist': es_playlist,
-                'miniatura': thumb_url, # Enviamos la URL de la imagen
+                'miniatura': thumb,
                 'formatos': []
             }
+
             if not es_playlist:
                 formats = info.get('formats', [])
                 resoluciones = set()
@@ -98,8 +96,8 @@ def analizar():
                     res = f"{f['height']}p"
                     if res not in resoluciones:
                         resoluciones.add(res)
-                        format_id = f"bestvideo[height<={f['height']}]+bestaudio/best[height<={f['height']}]"
-                        opciones.append({'id': format_id, 'texto': f"Video {res}", 'ext': f.get('ext', 'mp4'), 'tipo': 'video'})
+                        fid = f"bestvideo[height<={f['height']}]+bestaudio/best[height<={f['height']}]"
+                        opciones.append({'id': fid, 'texto': f"Video {res}", 'ext': f.get('ext','mp4'), 'tipo': 'video'})
                 datos['formatos'] = opciones
             else:
                 datos['cantidad'] = len(list(info['entries']))
@@ -111,107 +109,111 @@ def analizar():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/bajar_archivo')
+def bajar_archivo():
+    relative_path = request.args.get('name')
+    full_path = os.path.join(BASE_TEMP_FOLDER, relative_path)
+    
+    if os.path.exists(full_path):
+        return send_file(full_path, as_attachment=True)
+    else:
+        return "El archivo ya expiró o fue eliminado.", 404
+
 @app.route('/descargar_stream')
 def descargar_stream():
     url = request.args.get('url')
     format_id = request.args.get('format_id')
-    save_path = request.args.get('path')
     es_playlist = request.args.get('es_playlist') == 'true'
 
-    cola_mensajes = queue.Queue()
+    cola = queue.Queue()
+    session_id = str(uuid.uuid4())
+    session_folder = os.path.join(BASE_TEMP_FOLDER, session_id)
+    
+    if not os.path.exists(session_folder):
+        os.makedirs(session_folder)
 
-    def trabajador_descarga():
+    def tarea_descarga():
         errores = []
         completados = 0
-        total_items = 1
-
-        base_opts = {
+        
+        opciones = {
             'format': format_id,
-            'quiet': True,
-            'no_warnings': True,
-            'ignoreerrors': True,
-            'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3'}] if 'bestaudio' in format_id and 'bestvideo' not in format_id else [],
-            'merge_output_format': 'mkv'
+            'quiet': True, 'no_warnings': True, 'ignoreerrors': True,
+            'merge_output_format': 'mkv',
+            'outtmpl': os.path.join(session_folder, '%(title)s.%(ext)s'),
+            'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3'}] if 'bestaudio' in format_id and 'bestvideo' not in format_id else []
         }
 
         try:
-            with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl_scan:
-                info_scan = ydl_scan.extract_info(url, download=False)
-                if 'entries' in info_scan:
-                    lista_videos = list(info_scan['entries'])
-                    total_items = len(lista_videos)
-                    playlist_title = info_scan.get('title', 'Playlist')
-                    final_path = os.path.join(save_path, playlist_title)
-                else:
-                    lista_videos = [info_scan]
-                    total_items = 1
-                    final_path = save_path
+            with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if 'entries' in info: items = list(info['entries'])
+                else: items = [info]
 
-            cola_mensajes.put({'status': 'inicio_total', 'total': total_items})
+            total = len(items)
+            cola.put({'status': 'inicio_total', 'total': total})
 
-            for index, video in enumerate(lista_videos):
-                vid_idx = index + 1
-                vid_title = video.get('title', f'Video {vid_idx}')
-                vid_url = video.get('url') or video.get('webpage_url')
+            for i, item in enumerate(items):
+                idx = i + 1
+                titulo = item.get('title', f'Video {idx}')
+                link = item.get('url') or item.get('webpage_url')
 
-                cola_mensajes.put({'status': 'nuevo_video', 'indice': vid_idx, 'total': total_items, 'titulo': vid_title})
+                cola.put({'status': 'nuevo_video', 'indice': idx, 'total': total, 'titulo': titulo})
 
-                def progress_hook(d):
+                def progress(d):
                     if d['status'] == 'downloading':
-                        # --- CÁLCULO MATEMÁTICO DEL PORCENTAJE ---
-                        downloaded = d.get('downloaded_bytes', 0)
-                        total = d.get('total_bytes') or d.get('total_bytes_estimate')
-                        
-                        if total:
-                            # Calculamos porcentaje nosotros mismos
-                            p = (downloaded / total) * 100
-                        else:
-                            p = 0
-                        
+                        descargado = d.get('downloaded_bytes', 0)
+                        tot = d.get('total_bytes') or d.get('total_bytes_estimate')
+                        p = (descargado / tot * 100) if tot else 0
                         speed = d.get('speed')
+                        cola.put({
+                            'status': 'descargando', 'progreso': p,
+                            'texto_avance': f"{formatear_bytes(descargado)} de {formatear_bytes(tot)}",
+                            'texto_velocidad': f"{formatear_bytes(speed)}/s" if speed else "..."
+                        })
 
-                        msg = {
-                            'status': 'descargando',
-                            'progreso': p, # Enviamos el número flotante puro
-                            'detalle': f"{formatear_bytes(downloaded)} de {formatear_bytes(total)}",
-                            'velocidad': f"{formatear_bytes(speed)}/s" if speed else "..."
-                        }
-                        cola_mensajes.put(msg)
+                opts_video = opciones.copy()
+                opts_video['progress_hooks'] = [progress]
 
-                current_opts = base_opts.copy()
-                current_opts['outtmpl'] = os.path.join(final_path, '%(title)s.%(ext)s')
-                current_opts['progress_hooks'] = [progress_hook]
-                
                 try:
-                    with yt_dlp.YoutubeDL(current_opts) as ydl_item:
-                        ydl_item.download([vid_url])
+                    with yt_dlp.YoutubeDL(opts_video) as ydl_item:
+                        ydl_item.download([link])
                     completados += 1
                 except Exception as e:
-                    err_msg = str(e)
-                    if "Private video" in err_msg: err_msg = "Video Privado"
-                    elif "Copyright" in err_msg: err_msg = "Bloqueo por Copyright"
-                    errores.append({'indice': vid_idx, 'titulo': vid_title, 'causa': err_msg})
+                    errores.append({'titulo': titulo, 'causa': str(e)})
 
-            cola_mensajes.put({'status': 'completado_total', 'completados': completados, 'errores': errores})
+            # Buscar archivo final
+            archivos = os.listdir(session_folder)
+            archivo_final_nombre = None
+            if archivos:
+                archivo_real = archivos[0]
+                archivo_final_nombre = os.path.join(session_id, archivo_real)
+
+            cola.put({
+                'status': 'fin_total', 
+                'completados': completados, 
+                'errores': errores,
+                'archivo_descarga': archivo_final_nombre
+            })
 
         except Exception as e:
-            cola_mensajes.put({'error': str(e)})
+            cola.put({'error': str(e)})
         
-        cola_mensajes.put(None) 
+        cola.put(None)
 
-    def generar_sse():
-        hilo = threading.Thread(target=trabajador_descarga)
+    def generador_sse():
+        hilo = threading.Thread(target=tarea_descarga)
         hilo.start()
         while True:
             try:
-                dato = cola_mensajes.get(timeout=0.1)
+                dato = cola.get(timeout=0.1)
                 if dato is None: break
                 yield f"data:{json.dumps(dato)}\n\n"
             except queue.Empty:
                 if not hilo.is_alive(): break
                 continue
 
-    return Response(stream_with_context(generar_sse()), mimetype='text/event-stream')
+    return Response(stream_with_context(generador_sse()), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    app.run(debug=True, threaded=True, host='0.0.0.0')
